@@ -47,6 +47,17 @@ input[type="range"]{width:100%;margin:8px 0;cursor:pointer}
 </div>
 
 <div class="group">
+<label for="currency">Moneda de cálculo fiat</label>
+<select id="currency" onchange="updatePreview()">
+<option value="MXN">Peso Mexicano (MXN $)</option>
+<option value="COP">Peso Colombiano (COP $)</option>
+<option value="ARS">Peso Argentino (ARS $)</option>
+<option value="CLP">Peso Chileno (CLP $)</option>
+<option value="USD">Dólar Estadounidense (USD $)</option>
+</select>
+</div>
+
+<div class="group">
 <label for="token">Activo de Criptomoneda</label>
 <select id="token" onchange="updatePreview()">
 <option value="BTC" data-apy="3.5">Bitcoin (BTC) — 3.5% Yield</option>
@@ -69,8 +80,8 @@ input[type="range"]{width:100%;margin:8px 0;cursor:pointer}
 </div>
 
 <div class="group">
-<label for="investment">Inversión Inicial ($)</label>
-<input type="number" id="investment" value="1000" min="1" max="50000000" oninput="updatePreview()">
+<label for="investment">Inversión Inicial</label>
+<input type="number" id="investment" value="10000" min="1" max="500000000" oninput="updatePreview()">
 </div>
 
 <div class="group">
@@ -97,9 +108,9 @@ input[type="range"]{width:100%;margin:8px 0;cursor:pointer}
 <div class="results" id="results-box">
 <div class="res-title">Desglose Financiero e Impuestos</div>
 <div class="res-row"><span>Total de Recompensas Ganadas:</span><span class="res-val" id="res-tokens">0</span></div>
-<div class="res-row"><span>Valor Futuro del Portafolio:</span><span class="res-val" id="res-total">$0</span></div>
-<div class="res-row"><span>Ganancia Neta (ROI):</span><span class="res-val" id="res-roi">+0%</span></div>
-<div class="res-row"><span>Impuesto Estimado sobre Ganancias (15%):</span><span class="res-val loss" id="res-tax">$0</span></div>
+<div class="res-row"><span>Valor Futuro del Portafolio:</span><span class="res-val" id="res-total">0</span></div>
+<div class="res-row"><span>Ganancia Neta (ROI):</span><span class="res-val" id="res-roi">0</span></div>
+<div class="res-row"><span>Impuesto Estimado sobre Ganancias (15%):</span><span class="res-val loss" id="res-tax">0</span></div>
 </div>
 
 <div class="tm-box" id="tm-container" style="display:none;">
@@ -110,7 +121,7 @@ input[type="range"]{width:100%;margin:8px 0;cursor:pointer}
 <div id="ads" class="ad"><div id="container-e8c895e6c70ade8e4ef4a72354f42e97"></div></div>
 
 <div class="seo-text" id="seo-box">
-Nuestra calculadora avanzada en línea de staking de criptomonedas evalúa los rendimientos de la inversión considerando frecuencias de capitalización recursivas, acumulación de activos y valoraciones especulativas del mercado. El motor procesa rendimientos porcentuales anuales (APY) específicos en 16 redes descentralizadas diferentes, incluidos préstamos de Bitcoin, ecosistemas de Ethereum y Solana, generando estimaciones automatizadas para las obligaciones fiscales sobre ganancias de capital. Un modelo retrospectivo integrado expone los costos históricos de oportunidad de ciclos de mercado anteriores. Cada proceso opera 100% localmente en el navegador para proteger la privacidad de sus datos financieros.
+Nuestra calculadora avanzada en línea de staking de criptomonedas evalúa los rendimientos de la inversión considerando frecuencias de capitalización recursivas, acumulación de activos y valoraciones especulativas del mercado. El motor procesa rendimientos porcentuales anuales (APY) específicos en 16 redes descentralizadas diferentes, incluidos préstamos de Bitcoin, de Ethereum y Solana, generando estimaciones automatizadas para las obligaciones fiscales sobre ganancias de capital. Un modelo retrospectivo integrado expone los costos históricos de oportunidad de ciclos de mercado anteriores. Cada proceso opera 100% localmente en el navegador para proteger la privacidad de sus datos financieros.
 </div>
 </div>
 <script>
@@ -128,6 +139,14 @@ const currentPricesUSD = {
   INJ: 21.00, XTZ: 0.70, MINA: 0.55, USDT: 1.00
 };
 
+const fiatToUSD = {
+  MXN: 0.052,   
+  COP: 0.00024, 
+  ARS: 0.0010,  
+  CLP: 0.0011,  
+  USD: 1.00     
+};
+
 function setCompound(periods, el) {
   const parent = el.parentElement;
   Array.from(parent.children).forEach(b => b.classList.remove('active'));
@@ -137,16 +156,19 @@ function setCompound(periods, el) {
 }
 
 function calculateStakingData() {
-  const investmentUSD = parseFloat(document.getElementById('investment').value) || 0;
+  const investmentFiat = parseFloat(document.getElementById('investment').value) || 0;
   const years = parseInt(document.getElementById('years').value) || 1;
   const trendPercent = parseFloat(document.getElementById('trend').value) || 0;
+  const currency = document.getElementById('currency').value;
   
   const tokenSelect = document.getElementById('token');
   const token = tokenSelect.value;
   const apy = parseFloat(tokenSelect.options[tokenSelect.selectedIndex].getAttribute('data-apy')) / 100;
 
-  if (investmentUSD <= 0) return null;
+  if (investmentFiat <= 0) return null;
 
+  const fiatRate = fiatToUSD[currency] || 1;
+  const investmentUSD = investmentFiat * fiatRate;
   const currentTokenPriceUSD = currentPricesUSD[token] || 1;
   const initialTokens = investmentUSD / currentTokenPriceUSD;
 
@@ -161,23 +183,25 @@ function calculateStakingData() {
 
   const futureTokenPriceUSD = currentTokenPriceUSD * (1 + (trendPercent / 100));
   const finalPortfolioValueUSD = finalTokens * futureTokenPriceUSD;
+  const finalPortfolioValueFiat = finalPortfolioValueUSD / fiatRate;
 
-  const netProfitUSD = Math.max(0, finalPortfolioValueUSD - investmentUSD);
-  const roi = initialTokens > 0 ? (netProfitUSD / investmentUSD) * 100 : 0;
-  const estimatedTax = netProfitUSD * 0.15; // 15% Estimated LATAM Capital Gains Tax
+  const netProfitFiat = Math.max(0, finalPortfolioValueFiat - investmentFiat);
+  const roi = initialTokens > 0 ? (netProfitFiat / investmentFiat) * 100 : 0;
+  const estimatedTax = netProfitFiat * 0.15; 
 
   const historicalPriceUSD = historicalPricesUSD[token] || 1;
   const historicalTokens = investmentUSD / historicalPriceUSD;
   const historicalFinalTokens = historicalTokens * Math.pow(1 + (apy / 12), 12 * 3);
-  const historicalValueUSD = historicalFinalTokens * currentTokenPriceUSD;
+  const historicalValueFiat = (historicalFinalTokens * currentTokenPriceUSD) / fiatRate;
 
   return {
     earnedTokens: earnedTokens.toFixed(4),
-    finalValue: Math.round(finalPortfolioValueUSD).toLocaleString('es-MX'),
+    finalValue: Math.round(finalPortfolioValueFiat).toLocaleString('es-MX'),
     roi: Math.round(roi),
     tax: Math.round(estimatedTax).toLocaleString('es-MX'),
+    currency: currency,
     token: token,
-    pastValue: Math.round(historicalValueUSD).toLocaleString('es-MX')
+    pastValue: Math.round(historicalValueFiat).toLocaleString('es-MX')
   };
 }
 
@@ -246,11 +270,11 @@ function calculateStaking() {
   }
 
   document.getElementById('res-tokens').innerText = data.earnedTokens + " " + data.token;
-  document.getElementById('res-total').innerText = "\$" + data.finalValue;
+  document.getElementById('res-total').innerText = "\$ " + data.finalValue + " " + data.currency;
   document.getElementById('res-roi').innerText = "+" + data.roi + "%";
-  document.getElementById('res-tax').innerText = "\$" + data.tax;
+  document.getElementById('res-tax').innerText = "\$ " + data.tax + " " + data.currency;
 
-  const tmVerdict = `¡Si hubiera asignado este capital en ${data.token} hace exactamente 3 años con interés compuesto reinvertido mensualmente, su saldo tendría $${data.pastValue} hoy en lugar del valor base del activo!`;
+  const tmVerdict = `¡Si hubiera asignado este capital en ${data.token} hace exactamente 3 años con interés compuesto reinvertido mensualmente, su saldo tendría $ ${data.pastValue} ${data.currency} hoy en lugar del valor base del activo!`;
   document.getElementById('tm-verdict').innerText = tmVerdict;
 
   document.getElementById('results-box').style.display = 'block';
